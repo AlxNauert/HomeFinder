@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeFinder Pro - Interactive Home Buyer & Neighborhood Evaluator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .leaflet-popup-content-wrapper { border-radius: 12px; padding: 4px; }
+        .leaflet-popup-content { margin: 8px 12px; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased selection:bg-sky-500 selection:text-white">
+
+    <!-- TOP HEADER / NAVBAR -->
+    <header class="no-print sticky top-0 z-30 bg-slate-900 text-white shadow-md border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo & Subtitle -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-tr from-sky-500 to-emerald-400 p-2.5 rounded-xl shadow-lg text-white">
+                        <i class="fa-solid fa-house-circle-check text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-100 to-sky-300 bg-clip-text text-transparent">HomeFinder <span class="text-sky-400">Pro</span></span>
+                        <span class="hidden sm:inline-block text-xs text-slate-400 ml-2 font-medium px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Target Area Evaluator</span>
+                    </div>
+                </div>
+
+                <!-- Nav Tabs -->
+                <nav class="hidden md:flex space-x-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+                    <button onclick="switchTab('properties')" id="tab-btn-properties" class="nav-tab active-tab px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center space-x-2 text-white bg-sky-600 shadow-sm">
+                        <i class="fa-solid fa-list-ul text-xs"></i>
+                        <span>Listings</span>
+                    </button>
+                    <button onclick="switchTab('towns')" id="tab-btn-towns" class="nav-tab px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-city text-xs"></i>
+                        <span>Target Towns</span>
+                        <span id="town-count-badge" class="bg-slate-700 text-sky-300 text-xs px-2 py-0.5 rounded-full font-bold">5</span>
+                    </button>
+                    <button onclick="switchTab('map')" id="tab-btn-map" class="nav-tab px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-map-location-dot text-xs"></i>
+                        <span>Map View</span>
+                    </button>
+                    <button onclick="switchTab('calculator')" id="tab-btn-calculator" class="nav-tab px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-calculator text-xs"></i>
+                        <span>Mortgage Calc</span>
+                    </button>
+                    <button onclick="switchTab('saved')" id="tab-btn-saved" class="nav-tab px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-heart text-xs text-rose-400"></i>
+                        <span>Saved & Tour Sheet</span>
+                        <span id="saved-count-badge" class="bg-rose-500/20 text-rose-300 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                </nav>
+
+                <!-- Quick Action Button -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="openPreferenceModal()" class="bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center space-x-2 transition">
+                        <i class="fa-solid fa-sliders text-sky-400"></i>
+                        <span class="hidden sm:inline">Preferences & Budget</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Scrollable Row -->
+        <div class="md:hidden flex overflow-x-auto bg-slate-950 px-3 py-2 border-t border-slate-800 space-x-2 custom-scrollbar">
+            <button onclick="switchTab('properties')" id="mob-tab-btn-properties" class="mob-nav-tab text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap bg-sky-600 text-white">
+                <i class="fa-solid fa-list-ul mr-1"></i> Listings
+            </button>
+            <button onclick="switchTab('towns')" id="mob-tab-btn-towns" class="mob-nav-tab text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap text-slate-300 bg-slate-800">
+                <i class="fa-solid fa-city mr-1"></i> Towns
+            </button>
+            <button onclick="switchTab('map')" id="mob-tab-btn-map" class="mob-nav-tab text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap text-slate-300 bg-slate-800">
+                <i class="fa-solid fa-map-location-dot mr-1"></i> Map
+            </button>
+            <button onclick="switchTab('calculator')" id="mob-tab-btn-calculator" class="mob-nav-tab text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap text-slate-300 bg-slate-800">
+                <i class="fa-solid fa-calculator mr-1"></i> Calculator
+            </button>
+            <button onclick="switchTab('saved')" id="mob-tab-btn-saved" class="mob-nav-tab text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap text-slate-300 bg-slate-800">
+                <i class="fa-solid fa-heart text-rose-400 mr-1"></i> Saved (<span id="mob-saved-count">0</span>)
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
+
+        <!-- ========================================== -->
+        <!-- TAB 1: LISTINGS FEED VIEW                  -->
+        <!-- ========================================== -->
+        <section id="view-properties" class="tab-view flex-1 flex flex-col space-y-6">
+            
+            <!-- Filter Bar Panel -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    
+                    <!-- Search Input -->
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Search address, neighborhood, key features..." 
+                            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+                    </div>
+
+                    <!-- Target Town Filter -->
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap"><i class="fa-solid fa-location-dot text-sky-500 mr-1"></i>Town:</label>
+                        <select id="filter-town" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-700 font-medium">
+                            <option value="ALL">All Target Towns</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Price Range -->
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Price:</span>
+                        <select id="filter-max-price" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-700 font-medium">
+                            <option value="99999999">Max Price: Any</option>
+                            <option value="500000">Under $500k</option>
+                            <option value="650000">Under $650k</option>
+                            <option value="800000">Under $800k</option>
+                            <option value="1000000">Under $1.0M</option>
+                        </select>
+                    </div>
+
+                    <!-- Bedrooms & Sort -->
+                    <div class="flex items-center space-x-3">
+                        <select id="filter-beds" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-700 font-medium">
+                            <option value="0">Beds: Any</option>
+                            <option value="2">2+ Beds</option>
+                            <option value="3">3+ Beds</option>
+                            <option value="4">4+ Beds</option>
+                        </select>
+
+                        <select id="filter-sort" onchange="applyFilters()" class="bg-slate-50 border border-slate-200 rounded-xl text-sm py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-700 font-medium">
+                            <option value="match-desc">Sort: Highest Match %</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="sqft-desc">Square Feet: High to Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Amenity Pill Toggle Bar -->
+                <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 mr-2">Amenities:</span>
+                    <button onclick="toggleAmenityFilter('Garage', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-car mr-1"></i> Garage
+                    </button>
+                    <button onclick="toggleAmenityFilter('Yard', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-tree mr-1"></i> Yard
+                    </button>
+                    <button onclick="toggleAmenityFilter('Pool', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-water-ladder mr-1"></i> Pool
+                    </button>
+                    <button onclick="toggleAmenityFilter('Solar', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-solar-panel mr-1"></i> Solar
+                    </button>
+                    <button onclick="toggleAmenityFilter('Renovated', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-sparkles mr-1"></i> Renovated
+                    </button>
+                    <button onclick="toggleAmenityFilter('Water view', this)" class="amenity-chip border border-slate-200 bg-slate-50 text-slate-600 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-water mr-1"></i> Water view
+                    </button>
+                    
+                    <button onclick="resetFilters()" class="ml-auto text-xs font-semibold text-sky-600 hover:text-sky-700 underline">
+                        Reset All Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center justify-between px-1">
+                <p class="text-sm font-semibold text-slate-600">
+                    Showing <span id="property-count" class="text-sky-600 font-bold">0</span> target properties
+                </p>
+                <div class="text-xs text-slate-500 flex items-center space-x-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    <span>Town match score recalculated dynamically</span>
+                </div>
+            </div>
+
+            <!-- Property Card Grid -->
+            <div id="properties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamically Populated -->
+            </div>
+
+            <!-- Empty State (hidden by default) -->
+            <div id="no-properties-msg" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-3">
+                <div class="w-16 h-16 bg-sky-50 text-sky-500 rounded-full flex items-center justify-center mx-auto text-2xl">
+                    <i class="fa-solid fa-house-chimney-crack"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">No properties fit your criteria</h3>
+                <p class="text-sm text-slate-500 max-w-md mx-auto">Try loosening your max price or bedroom filters, or select "All Target Towns" to browse more homes.</p>
+                <button onclick="resetFilters()" class="px-4 py-2 bg-sky-600 text-white rounded-xl text-sm font-semibold hover:bg-sky-700 transition">Reset Search Filters</button>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: TARGET TOWN & AREA MANAGER          -->
+        <!-- ========================================== -->
+        <section id="view-towns" class="tab-view hidden flex-1 flex flex-col space-y-8">
+            
+            <!-- Hero Header & Preference Trigger -->
+            <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-6 border border-slate-800">
+                <div class="space-y-2 max-w-2xl">
+                    <div class="inline-flex items-center space-x-2 bg-sky-500/20 text-sky-300 text-xs font-bold px-3 py-1 rounded-full border border-sky-500/30">
+                        <i class="fa-solid fa-bullseye"></i>
+                        <span>Smart Area Matching Active</span>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Target Town Hub & Comparison</h2>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Evaluate target communities by school ratings, safety, walkability, property tax impact, and commute. Matches are dynamically computed against your personalized weights.
+                    </p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button onclick="openPreferenceModal()" class="px-5 py-3 bg-sky-500 hover:bg-sky-400 text-slate-900 font-bold rounded-xl text-sm shadow-lg transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>Adjust Weightings</span>
+                    </button>
+                    <button onclick="openAddTownModal()" class="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-sm border border-slate-700 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Add Custom Town</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Town Match Cards Grid -->
+            <div>
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center space-x-2">
+                    <i class="fa-solid fa-award text-amber-500"></i>
+                    <span>Target Town Match Rankings</span>
+                </h3>
+                <div id="towns-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Side-by-Side Town Matrix Table -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">Interactive Town Comparison Matrix</h3>
+                        <p class="text-xs text-slate-500">Compare metrics across all target towns side-by-side</p>
+                    </div>
+                    <span class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium px-2.5 py-1 rounded-full">
+                        <i class="fa-solid fa-circle-check mr-1"></i> Auto-calculated
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="p-3.5 font-bold text-slate-700">Target Town</th>
+                                <th class="p-3.5 font-bold text-slate-700">Match Score</th>
+                                <th class="p-3.5 font-bold text-slate-700">Median Price</th>
+                                <th class="p-3.5 font-bold text-slate-700">Schools</th>
+                                <th class="p-3.5 font-bold text-slate-700">Safety Score</th>
+                                <th class="p-3.5 font-bold text-slate-700">WalkScore</th>
+                                <th class="p-3.5 font-bold text-slate-700">Commute</th>
+                                <th class="p-3.5 font-bold text-slate-700">Prop Tax</th>
+                                <th class="p-3.5 font-bold text-slate-700 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="town-matrix-tbody" class="divide-y divide-slate-100">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: INTERACTIVE MAP VIEW                -->
+        <!-- ========================================== -->
+        <section id="view-map" class="tab-view hidden flex-1 flex flex-col space-y-4 h-[calc(100vh-140px)]">
+            <div class="bg-white p-3 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500"><i class="fa-solid fa-map-pin text-rose-500 mr-1"></i>Map Filter:</span>
+                    <select id="map-town-filter" onchange="renderMapMarkers()" class="bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        <option value="ALL">All Target Towns</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-4 text-xs font-medium text-slate-600">
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-sky-600 inline-block mr-1.5"></span> Property Pin</span>
+                    <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block mr-1.5 opacity-60"></span> Town Overlay Circle</span>
+                </div>
+            </div>
+
+            <!-- Leaflet Map Canvas Container -->
+            <div id="map-container" class="flex-1 rounded-2xl overflow-hidden border border-slate-200 shadow-inner z-10 min-h-[450px]"></div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 4: MORTGAGE & COST CALCULATOR          -->
+        <!-- ========================================== -->
+        <section id="view-calculator" class="tab-view hidden flex-1 flex flex-col space-y-6">
+            <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-800">Mortgage & Total Monthly Payment Calculator</h2>
+                    <p class="text-sm text-slate-500">Estimate your complete out-of-pocket monthly housing expense including principal, interest, property taxes, homeowners insurance, and HOA fees.</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    
+                    <!-- Sliders / Controls (7 Cols) -->
+                    <div class="lg:col-span-7 space-y-5 bg-slate-50/70 p-6 rounded-xl border border-slate-200">
+                        
+                        <!-- Home Price Input -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wide">Home Purchase Price</label>
+                                <span id="calc-price-display" class="text-base font-extrabold text-sky-600">$650,000</span>
+                            </div>
+                            <input type="range" id="calc-price-slider" min="200000" max="2000000" step="10000" value="650000" oninput="updateCalculator()" class="w-full accent-sky-600 cursor-pointer">
+                        </div>
+
+                        <!-- Down Payment Slider & % -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="text-xs font-bold text-slate-700 uppercase tracking-wide">Down Payment</label>
+                                <span id="calc-dp-display" class="text-base font-extrabold text-slate-800">$130,000 (20%)</span>
+                            </div>
+                            <input type="range" id="calc-dp-slider" min="3" max="50" step="1" value="20" oninput="updateCalculator()" class="w-full accent-sky-600 cursor-pointer">
+                        </div>
+
+                        <!-- Interest Rate & Term -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Interest Rate (%)</label>
+                                <input type="number" id="calc-rate-input" step="0.1" value="6.5" oninput="updateCalculator()" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">Loan Term</label>
+                                <select id="calc-term-select" onchange="updateCalculator()" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                                    <option value="30">30 Years Fixed</option>
+                                    <option value="15">15 Years Fixed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Taxes, Insurance & HOA -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Property Tax Rate (%)</label>
+                                <input type="number" id="calc-taxrate-input" step="0.05" value="1.6" oninput="updateCalculator()" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Annual Insurance ($)</label>
+                                <input type="number" id="calc-insurance-input" step="100" value="1800" oninput="updateCalculator()" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">Monthly HOA ($)</label>
+                                <input type="number" id="calc-hoa-input" step="25" value="0" oninput="updateCalculator()" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Donut Chart & Output Summary (5 Cols) -->
+                    <div class="lg:col-span-5 flex flex-col items-center justify-center bg-slate-900 text-white rounded-2xl p-6 shadow-xl space-y-4">
+                        <div class="text-center">
+                            <span class="text-xs uppercase font-bold text-sky-400 tracking-wider">Estimated Total Monthly Cost</span>
+                            <div id="calc-total-monthly" class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mt-1">$3,982</div>
+                            <span class="text-xs text-slate-400">/ month principal, taxes & insurance</span>
+                        </div>
+
+                        <!-- Donut Canvas -->
+                        <div class="w-52 h-52 relative">
+                            <canvas id="mortgageChart"></canvas>
+                        </div>
+
+                        <!-- Breakdown Legend -->
+                        <div class="w-full grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-800">
+                            <div class="flex items-center justify-between p-2 rounded bg-slate-800/60">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-sky-500 mr-2"></span>P & I:</span>
+                                <span id="legend-pi" class="font-bold text-white">$3,286</span>
+                            </div>
+                            <div class="flex items-center justify-between p-2 rounded bg-slate-800/60">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 mr-2"></span>Tax:</span>
+                                <span id="legend-tax" class="font-bold text-white">$866</span>
+                            </div>
+                            <div class="flex items-center justify-between p-2 rounded bg-slate-800/60">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 mr-2"></span>Insurance:</span>
+                                <span id="legend-ins" class="font-bold text-white">$150</span>
+                            </div>
+                            <div class="flex items-center justify-between p-2 rounded bg-slate-800/60">
+                                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 mr-2"></span>HOA:</span>
+                                <span id="legend-hoa" class="font-bold text-white">$0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- TAB 5: SAVED HOMES & TOUR CHEAT-SHEET      -->
+        <!-- ========================================== -->
+        <section id="view-saved" class="tab-view hidden flex-1 flex flex-col space-y-6">
+            
+            <div class="no-print bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-800 flex items-center space-x-2">
+                        <i class="fa-solid fa-heart text-rose-500"></i>
+                        <span>Saved Homes & Tour Planning</span>
+                    </h2>
+                    <p class="text-sm text-slate-500">Add personal notes, rank ratings, and print an optimized cheat-sheet for house hunting tours.</p>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <button onclick="openCompareModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-2">
+                        <i class="fa-solid fa-code-compare"></i>
+                        <span>Side-by-Side Compare</span>
+                    </button>
+                    <button onclick="window.print()" class="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-semibold transition flex items-center space-x-2 shadow-md">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Print Tour Cheat-Sheet</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Saved Homes Grid View -->
+            <div id="saved-properties-grid" class="no-print grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Dynamically Populated -->
+            </div>
+
+            <!-- Empty State for Saved Homes -->
+            <div id="no-saved-msg" class="no-print bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-3">
+                <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto text-2xl">
+                    <i class="fa-regular fa-heart"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">No saved homes yet</h3>
+                <p class="text-sm text-slate-500 max-w-md mx-auto">Click the heart icon on any property card to save it here, add custom field notes, and generate tour printable sheets.</p>
+                <button onclick="switchTab('properties')" class="px-4 py-2 bg-sky-600 text-white rounded-xl text-sm font-semibold hover:bg-sky-700 transition">Browse Properties Feed</button>
+            </div>
+
+            <!-- PRINTABLE TOUR CHEAT-SHEET (Visible when printing or in print view) -->
+            <div id="print-cheat-sheet" class="print-only bg-white p-8 space-y-6">
+                <div class="border-b border-slate-300 pb-4 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900">HomeFinder Pro - House Hunting Tour Sheet</h1>
+                        <p class="text-sm text-slate-600">Buyer Reference Sheet & Rating Checklist</p>
+                    </div>
+                    <div class="text-right text-xs text-slate-500">
+                        <p>Date Generated: <span id="print-date"></span></p>
+                        <p>Total Homes: <span id="print-count">0</span></p>
+                    </div>
+                </div>
+
+                <div id="print-items-list" class="space-y-6">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: PREFERENCES & WEIGHTS             -->
+    <!-- ========================================== -->
+    <div id="modal-preferences" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 transform transition-all">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-extrabold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-sliders text-sky-600"></i>
+                    <span>Personal Match Preferences</span>
+                </h3>
+                <button onclick="closePreferenceModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-500">Adjust what matters most to your household. HomeFinder Pro will calculate dynamic match scores (%) for each town and listing based on these weights.</p>
+
+            <div class="space-y-4">
+                <!-- Target Maximum Budget -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>Max Target Budget</span>
+                        <span id="pref-budget-display" class="text-sky-600">$700,000</span>
+                    </div>
+                    <input type="range" id="pref-budget-slider" min="300000" max="1500000" step="25000" value="700000" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+
+                <!-- Weight Sliders -->
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>School Rating Importance</span>
+                        <span id="pref-school-val" class="text-slate-500">High (9/10)</span>
+                    </div>
+                    <input type="range" id="pref-school-slider" min="1" max="10" value="9" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>Safety / Crime Score Weight</span>
+                        <span id="pref-safety-val" class="text-slate-500">High (9/10)</span>
+                    </div>
+                    <input type="range" id="pref-safety-slider" min="1" max="10" value="9" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>Commute Time Sensitivity</span>
+                        <span id="pref-commute-val" class="text-slate-500">Moderate (6/10)</span>
+                    </div>
+                    <input type="range" id="pref-commute-slider" min="1" max="10" value="6" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>Walkability / WalkScore</span>
+                        <span id="pref-walk-val" class="text-slate-500">Moderate (5/10)</span>
+                    </div>
+                    <input type="range" id="pref-walk-slider" min="1" max="10" value="5" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
+                        <span>Property Tax Sensitivity (Lower is better)</span>
+                        <span id="pref-tax-val" class="text-slate-500">High (8/10)</span>
+                    </div>
+                    <input type="range" id="pref-tax-slider" min="1" max="10" value="8" oninput="updatePrefDisplay()" class="w-full accent-sky-600">
+                </div>
+            </div>
+
+            <div class="pt-2 flex justify-end space-x-2">
+                <button onclick="savePreferences()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold rounded-xl shadow transition">
+                    Save Preferences & Recalculate
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: PROPERTY DETAIL VIEW              -->
+    <!-- ========================================== -->
+    <div id="modal-property" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col my-auto custom-scrollbar">
+            <!-- Modal Header / Title Bar -->
+            <div class="p-4 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50 sticky top-0 z-20 backdrop-blur-md">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span id="prop-modal-town" class="bg-sky-100 text-sky-800 text-xs font-bold px-2.5 py-0.5 rounded-md">Town</span>
+                        <span id="prop-modal-match" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-md">94% Town Match</span>
+                    </div>
+                    <h2 id="prop-modal-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">Property Title</h2>
+                    <p id="prop-modal-address" class="text-xs sm:text-sm text-slate-500"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Address</p>
+                </div>
+                <button onclick="closePropertyModal()" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-6 space-y-6">
+                <!-- Main Image Carousel / Grid -->
+                <div class="space-y-3">
+                    <div class="relative h-64 sm:h-96 rounded-2xl overflow-hidden shadow-sm bg-slate-100">
+                        <img id="prop-modal-main-img" src="" alt="Property Image" class="w-full h-full object-cover">
+                    </div>
+                    <div id="prop-modal-thumbs" class="flex space-x-2 overflow-x-auto pb-1 custom-scrollbar">
+                        <!-- Thumbnails populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Price & Specs Bar -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-center">
+                    <div>
+                        <span class="text-xs text-slate-500 uppercase font-bold block">List Price</span>
+                        <span id="prop-modal-price" class="text-xl font-extrabold text-sky-600">$0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-500 uppercase font-bold block">Bed / Bath</span>
+                        <span id="prop-modal-beds-baths" class="text-base font-bold text-slate-800">0 Beds / 0 Baths</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-500 uppercase font-bold block">Square Feet</span>
+                        <span id="prop-modal-sqft" class="text-base font-bold text-slate-800">0 sqft</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-500 uppercase font-bold block">Est. Monthly</span>
+                        <span id="prop-modal-est-mortgage" class="text-base font-bold text-emerald-600">$0/mo</span>
+                    </div>
+                </div>
+
+                <!-- Description & Amenities -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-2 space-y-4">
+                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Property Description</h4>
+                        <p id="prop-modal-desc" class="text-sm text-slate-600 leading-relaxed">Description goes here.</p>
+                        
+                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wide pt-2">Key Amenities & Highlights</h4>
+                        <div id="prop-modal-amenities" class="flex flex-wrap gap-2">
+                            <!-- Amenity badges -->
+                        </div>
+                    </div>
+
+                    <!-- Neighborhood Context Box -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                        <h4 class="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Local Town Overview</h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-500">School Rating:</span>
+                                <span id="prop-modal-school-score" class="font-bold text-slate-800">9/10</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-500">Safety Index:</span>
+                                <span id="prop-modal-safety-score" class="font-bold text-slate-800">92/100</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-200 pb-1.5">
+                                <span class="text-slate-500">WalkScore:</span>
+                                <span id="prop-modal-walk-score" class="font-bold text-slate-800">80/100</span>
+                            </div>
+                            <div class="flex justify-between pb-1">
+                                <span class="text-slate-500">Commute Time:</span>
+                                <span id="prop-modal-commute" class="font-bold text-slate-800">25 mins</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Section inside Property Modal -->
+                <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-200/80 space-y-3">
+                    <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center space-x-2">
+                        <i class="fa-solid fa-pen-to-square text-amber-600"></i>
+                        <span>Your Personal Notes & Ratings</span>
+                    </h4>
+                    <textarea id="prop-modal-notes-input" rows="2" placeholder="Add custom tour notes (e.g. 'Loved kitchen, roof needs update in 2 yrs')" class="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none text-slate-800"></textarea>
+                    
+                    <div class="flex items-center justify-between pt-1">
+                        <div class="flex items-center space-x-1 text-amber-400 text-sm" id="prop-modal-stars">
+                            <!-- Star Rating -->
+                            <i onclick="setModalRating(1)" class="fa-star fa-regular cursor-pointer"></i>
+                            <i onclick="setModalRating(2)" class="fa-star fa-regular cursor-pointer"></i>
+                            <i onclick="setModalRating(3)" class="fa-star fa-regular cursor-pointer"></i>
+                            <i onclick="setModalRating(4)" class="fa-star fa-regular cursor-pointer"></i>
+                            <i onclick="setModalRating(5)" class="fa-star fa-regular cursor-pointer"></i>
+                        </div>
+                        <button onclick="saveModalNotes()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition">
+                            Save Notes & Favorites
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 sm:p-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50">
+                <button id="prop-modal-save-btn" onclick="" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-sm font-semibold transition flex items-center space-x-2">
+                    <i class="fa-solid fa-heart"></i>
+                    <span>Favorite Property</span>
+                </button>
+                <div class="flex space-x-2">
+                    <button onclick="sendAgentInquiry()" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-bold transition shadow-md">
+                        <i class="fa-solid fa-calendar-check mr-1.5"></i> Schedule Tour
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: ADD CUSTOM TARGET TOWN            -->
+    <!-- ========================================== -->
+    <div id="modal-add-town" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-extrabold text-slate-800">Add Target Town</h3>
+                <button onclick="closeAddTownModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="add-town-form" onsubmit="handleAddTown(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Town Name</label>
+                    <input type="text" id="new-town-name" required placeholder="e.g. Maplewood Heights" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Median Price ($)</label>
+                        <input type="number" id="new-town-price" required placeholder="550000" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">School Rating (1-10)</label>
+                        <input type="number" id="new-town-school" min="1" max="10" step="0.5" required placeholder="8.5" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Safety Score (1-100)</label>
+                        <input type="number" id="new-town-safety" min="1" max="100" required placeholder="88" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">WalkScore (1-100)</label>
+                        <input type="number" id="new-town-walk" min="1" max="100" required placeholder="72" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Commute (Mins to Hub)</label>
+                        <input type="number" id="new-town-commute" required placeholder="30" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Prop Tax Rate (%)</label>
+                        <input type="number" id="new-town-tax" step="0.05" required placeholder="1.55" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Vibe Tags (Comma Separated)</label>
+                    <input type="text" id="new-town-vibes" placeholder="Suburban, Historic, Top Schools" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow transition">
+                        Add Target Area
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4: SIDE-BY-SIDE PROPERTY COMPARE     -->
+    <!-- ========================================== -->
+    <div id="modal-compare" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 space-y-5 custom-scrollbar">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-xl font-extrabold text-slate-800 flex items-center space-x-2">
+                    <i class="fa-solid fa-code-compare text-sky-600"></i>
+                    <span>Side-by-Side Property Matrix</span>
+                </h3>
+                <button onclick="closeCompareModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="compare-matrix-container" class="overflow-x-auto">
+                <!-- Dynamically generated comparison table -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toast-message">Notification message</span>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION CORE -->
+    <script>
+        // --- 1. SEED DATA STORE ---
+        const initialTowns = [
+            {
+                id: 'town-1',
+                name: 'Oakwood Heights',
+                county: 'Westfield County',
+                lat: 41.8781,
+                lng: -87.6298,
+                medianPrice: 640000,
+                schoolRating: 9.2,
+                safetyScore: 92,
+                walkScore: 78,
+                commuteTime: 28,
+                taxRate: 1.65,
+                vibes: ['Family Friendly', 'Top Schools', 'Express Rail', 'Suburban']
+            },
+            {
+                id: 'town-2',
+                name: 'Brookside Village',
+                county: 'Riverside County',
+                lat: 41.8900,
+                lng: -87.6500,
+                medianPrice: 520000,
+                schoolRating: 8.4,
+                safetyScore: 86,
+                walkScore: 88,
+                commuteTime: 20,
+                taxRate: 1.45,
+                vibes: ['Historic', 'Walkable Downtown', 'Parks', 'Dining']
+            },
+            {
+                id: 'town-3',
+                name: 'Highland Park Tech',
+                county: 'North Shore County',
+                lat: 41.8600,
+                lng: -87.6100,
+                medianPrice: 780000,
+                schoolRating: 9.6,
+                safetyScore: 95,
+                walkScore: 65,
+                commuteTime: 15,
+                taxRate: 1.85,
+                vibes: ['Tech Hub', 'Luxury Homes', 'Top High School', 'Modern']
+            },
+            {
+                id: 'town-4',
+                name: 'Pine Valley Estates',
+                county: 'Lake County',
+                lat: 41.8400,
+                lng: -87.6700,
+                medianPrice: 480000,
+                schoolRating: 7.8,
+                safetyScore: 90,
+                walkScore: 45,
+                commuteTime: 38,
+                taxRate: 1.25,
+                vibes: ['Spacious Yards', 'Quiet', 'Nature Trails', 'Affordable']
+            },
+            {
+                id: 'town-5',
+                name: 'Harbor View Shore',
+                county: 'Coastal County',
+                lat: 41.9050,
+                lng: -87.6200,
+                medianPrice: 890000,
+                schoolRating: 8.8,
+                safetyScore: 89,
+                walkScore: 82,
+                commuteTime: 32,
+                taxRate: 1.55,
+                vibes: ['Waterfront', 'Marina', 'Resort Vibe', 'Boutiques']
+            }
+        ];
+
+        const initialProperties = [
+            {
+                id: 'prop-101',
+                title: 'Modern Craftsman with Sunroom',
+                townId: 'town-1',
+                address: '742 Evergreen Terrace, Oakwood Heights',
+                price: 645000,
+                beds: 4,
+                baths: 3,
+                sqft: 2850,
+                type: 'Single Family',
+                images: [
+                    'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Garage', 'Yard', 'Solar', 'Renovated'],
+                lat: 41.8812,
+                lng: -87.6320,
+                description: 'Stunning 4-bedroom home boasting gourmet chef kitchen with quartz island, radiant floor solar heating, expanded back sunroom, and manicured private backyard.'
+            },
+            {
+                id: 'prop-102',
+                title: 'Historic Brick Colonial Near Main St',
+                townId: 'town-2',
+                address: '318 Maple Avenue, Brookside Village',
+                price: 515000,
+                beds: 3,
+                baths: 2.5,
+                sqft: 2200,
+                type: 'Single Family',
+                images: [
+                    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Garage', 'Yard', 'Renovated'],
+                lat: 41.8920,
+                lng: -87.6480,
+                description: 'Charming character colonial built in 1935, fully modernized with smart home central air, original hardwood trim, and 3-minute walk to downtown shops.'
+            },
+            {
+                id: 'prop-103',
+                title: 'Sleek Contemporary Architectural Villa',
+                townId: 'town-3',
+                address: '109 Innovation Way, Highland Park Tech',
+                price: 795000,
+                beds: 5,
+                baths: 4,
+                sqft: 3600,
+                type: 'Single Family',
+                images: [
+                    'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Garage', 'Yard', 'Pool', 'Solar', 'Renovated'],
+                lat: 41.8620,
+                lng: -87.6120,
+                description: 'Ultra-modern architectural estate featuring floor-to-ceiling glass walls, heated saltwater infinity pool, high-end Tesla solar battery bank, and EV charging station.'
+            },
+            {
+                id: 'prop-104',
+                title: 'Secluded Ranch on 1.2 Acre Wooded Lot',
+                townId: 'town-4',
+                address: '8842 Pine Tree Lane, Pine Valley Estates',
+                price: 469000,
+                beds: 3,
+                baths: 2,
+                sqft: 2100,
+                type: 'Single Family',
+                images: [
+                    'https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Garage', 'Yard'],
+                lat: 41.8390,
+                lng: -87.6680,
+                description: 'Peaceful country setting offering total privacy on over an acre. Features stone fireplace, expansive deck over creek, and newly paved 3-car garage drive.'
+            },
+            {
+                id: 'prop-105',
+                title: 'Waterfront Penthouse Condo with Balcony',
+                townId: 'town-5',
+                address: '12 Marina Promenade #501, Harbor View Shore',
+                price: 850000,
+                beds: 2,
+                baths: 2,
+                sqft: 1750,
+                type: 'Condo',
+                images: [
+                    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80',
+                    'https://images.unsplash.com/photo-1600566753086-35f133c65dae?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Water view', 'Pool', 'Renovated'],
+                lat: 41.9060,
+                lng: -87.6190,
+                description: 'Unobstructed panoramic lake and marina views from top-floor balcony. Includes dedicated boat slip access, concierge service, and high-end Sub-Zero appliances.'
+            },
+            {
+                id: 'prop-106',
+                title: 'Expanded Family Colonial with Finished Basement',
+                townId: 'town-1',
+                address: '1420 Suburban Drive, Oakwood Heights',
+                price: 680000,
+                beds: 4,
+                baths: 3.5,
+                sqft: 3100,
+                type: 'Single Family',
+                images: [
+                    'https://images.unsplash.com/photo-1598228723793-52759bba239c?auto=format&fit=crop&w=1000&q=80'
+                ],
+                amenities: ['Garage', 'Yard', 'Renovated'],
+                lat: 41.8760,
+                lng: -87.6310,
+                description: 'Spacious multi-level home featuring finished lower-level media room, primary luxury ensuite, and custom outdoor patio gazebo.'
+            }
+        ];
+
+        // --- 2. GLOBAL STATE ---
+        let towns = JSON.parse(localStorage.getItem('hf_towns')) || initialTowns;
+        let properties = initialProperties;
+        let savedProperties = JSON.parse(localStorage.getItem('hf_saved')) || [];
+        
+        let userPreferences = JSON.parse(localStorage.getItem('hf_prefs')) || {
+            maxBudget: 700000,
+            schoolWeight: 9,
+            safetyWeight: 9,
+            commuteWeight: 6,
+            walkWeight: 5,
+            taxWeight: 8
+        };
+
+        let currentActiveTab = 'properties';
+        let activeModalProperty = null;
+        let modalRatingTemp = 0;
+        let activeAmenityFilters = new Set();
+        let leafletMap = null;
+        let mapMarkersGroup = null;
+        let mortgageChartInstance = null;
+
+        // --- 3. MATCH ENGINE CALCULATIONS ---
+        function calculateTownMatchScore(town) {
+            // Budget Score
+            let budgetDiffRatio = (userPreferences.maxBudget - town.medianPrice) / userPreferences.maxBudget;
+            let budgetScore = 100;
+            if (budgetDiffRatio < 0) {
+                budgetScore = Math.max(30, 100 + (budgetDiffRatio * 150)); // Penalty for exceeding target budget
+            } else {
+                budgetScore = Math.min(100, 80 + (budgetDiffRatio * 40));
+            }
+
+            // Metric Norms (0-100)
+            let schoolScore = (town.schoolRating / 10) * 100;
+            let safetyScore = town.safetyScore;
+            let walkScore = town.walkScore;
+            
+            // Commute Score (30 mins or less = 100, drops off)
+            let commuteScore = Math.max(20, 100 - Math.max(0, town.commuteTime - 20) * 2.5);
+
+            // Tax Score (1.2% tax rate = 100, higher taxes lower score)
+            let taxScore = Math.max(20, 100 - (town.taxRate - 1.2) * 40);
+
+            // Weights Sum
+            let totalWeight = userPreferences.schoolWeight + userPreferences.safetyWeight + 
+                              userPreferences.commuteWeight + userPreferences.walkWeight + 
+                              userPreferences.taxWeight + 10; // +10 for budget weight
+
+            let weightedSum = (budgetScore * 10) +
+                              (schoolScore * userPreferences.schoolWeight) +
+                              (safetyScore * userPreferences.safetyWeight) +
+                              (commuteScore * userPreferences.commuteWeight) +
+                              (walkScore * userPreferences.walkWeight) +
+                              (taxScore * userPreferences.taxWeight);
+
+            let finalPercent = Math.round(weightedSum / totalWeight);
+            return Math.min(99, Math.max(40, finalPercent));
+        }
+
+        function calculatePropertyMatchScore(property) {
+            const town = towns.find(t => t.id === property.townId);
+            if (!town) return 75;
+            let baseTownMatch = calculateTownMatchScore(town);
+            
+            // Adjust based on listing price relative to target budget
+            if (property.price <= userPreferences.maxBudget) {
+                baseTownMatch = Math.min(99, baseTownMatch + 2);
+            } else {
+                let overagePercent = (property.price - userPreferences.maxBudget) / userPreferences.maxBudget;
+                baseTownMatch = Math.max(35, Math.round(baseTownMatch - (overagePercent * 80)));
+            }
+            return baseTownMatch;
+        }
+
+        function calculateEstimatedMortgage(price, taxRate = 1.6) {
+            const dp = price * 0.20;
+            const principal = price - dp;
+            const monthlyRate = 0.065 / 12;
+            const numPayments = 360;
+            
+            const monthlyPI = (principal * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+                              (Math.pow(1 + monthlyRate, numPayments) - 1);
+            
+            const monthlyTax = (price * (taxRate / 100)) / 12;
+            const monthlyIns = 150;
+            return Math.round(monthlyPI + monthlyTax + monthlyIns);
+        }
+
+        // --- 4. NAVIGATION & TABS ---
+        function switchTab(tabId) {
+            currentActiveTab = tabId;
+
+            // Hide all tabs
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            
+            // Deactivate nav buttons
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('bg-sky-600', 'text-white', 'shadow-sm');
+                btn.classList.add('text-slate-300');
+            });
+            document.querySelectorAll('.mob-nav-tab').forEach(btn => {
+                btn.classList.remove('bg-sky-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+
+            // Show current
+            const targetView = document.getElementById(`view-${tabId}`);
+            if (targetView) targetView.classList.remove('hidden');
+
+            const activeDesktopBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeDesktopBtn) {
+                activeDesktopBtn.classList.add('bg-sky-600', 'text-white', 'shadow-sm');
+                activeDesktopBtn.classList.remove('text-slate-300');
+            }
+
+            const activeMobileBtn = document.getElementById(`mob-tab-btn-${tabId}`);
+            if (activeMobileBtn) {
+                activeMobileBtn.classList.add('bg-sky-600', 'text-white');
+                activeMobileBtn.classList.remove('bg-slate-800', 'text-slate-300');
+            }
+
+            // Tab-specific initializations
+            if (tabId === 'map') {
+                setTimeout(initLeafletMap, 100);
+            } else if (tabId === 'calculator') {
+                updateCalculator();
+            } else if (tabId === 'saved') {
+                renderSavedProperties();
+            }
+        }
+
+        // --- 5. RENDER LISTINGS FEED ---
+        function renderProperties() {
+            const grid = document.getElementById('properties-grid');
+            const searchVal = document.getElementById('filter-search').value.toLowerCase();
+            const townFilter = document.getElementById('filter-town').value;
+            const maxPrice = parseFloat(document.getElementById('filter-max-price').value) || 99999999;
+            const minBeds = parseInt(document.getElementById('filter-beds').value) || 0;
+            const sortBy = document.getElementById('filter-sort').value;
+
+            let filtered = properties.filter(p => {
+                const town = towns.find(t => t.id === p.townId);
+                const matchSearch = p.title.toLowerCase().includes(searchVal) || 
+                                    p.address.toLowerCase().includes(searchVal) ||
+                                    (town && town.name.toLowerCase().includes(searchVal));
+                const matchTown = townFilter === 'ALL' || p.townId === townFilter;
+                const matchPrice = p.price <= maxPrice;
+                const matchBeds = p.beds >= minBeds;
+                
+                // Amenity check
+                let matchAmenities = true;
+                if (activeAmenityFilters.size > 0) {
+                    activeAmenityFilters.forEach(amenity => {
+                        if (!p.amenities.includes(amenity)) matchAmenities = false;
+                    });
+                }
+
+                return matchSearch && matchTown && matchPrice && matchBeds && matchAmenities;
+            });
+
+            // Sort logic
+            filtered.sort((a, b) => {
+                if (sortBy === 'price-asc') return a.price - b.price;
+                if (sortBy === 'price-desc') return b.price - a.price;
+                if (sortBy === 'sqft-desc') return b.sqft - a.sqft;
+                // Default: match-desc
+                return calculatePropertyMatchScore(b) - calculatePropertyMatchScore(a);
+            });
+
+            document.getElementById('property-count').textContent = filtered.length;
+            const noPropMsg = document.getElementById('no-properties-msg');
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                noPropMsg.classList.remove('hidden');
+                return;
+            } else {
+                noPropMsg.classList.add('hidden');
+            }
+
+            grid.innerHTML = filtered.map(p => {
+                const town = towns.find(t => t.id === p.townId) || { name: 'Target Area', taxRate: 1.5 };
+                const matchPercent = calculatePropertyMatchScore(p);
+                const estMortgage = calculateEstimatedMortgage(p.price, town.taxRate);
+                const isSaved = savedProperties.some(s => s.id === p.id);
+
+                return `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200/80 flex flex-col group">
+                        <!-- Image Container -->
+                        <div class="relative h-52 overflow-hidden bg-slate-100">
+                            <img src="${p.images[0]}" alt="${p.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            
+                            <!-- Badges -->
+                            <div class="absolute top-3 left-3 flex flex-col space-y-1">
+                                <span class="bg-slate-900/85 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow">
+                                    ${town.name}
+                                </span>
+                                <span class="${matchPercent >= 85 ? 'bg-emerald-600' : 'bg-sky-600'} text-white text-xs font-extrabold px-2.5 py-0.5 rounded-lg shadow-sm">
+                                    <i class="fa-solid fa-bullseye mr-1"></i>${matchPercent}% Match
+                                </span>
+                            </div>
+
+                            <!-- Favorite Button -->
+                            <button onclick="toggleFavoriteProperty('${p.id}', event)" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur-md hover:bg-white text-slate-700 hover:text-rose-500 flex items-center justify-center transition shadow">
+                                <i class="${isSaved ? 'fa-solid text-rose-500' : 'fa-regular'} fa-heart text-base"></i>
+                            </button>
+
+                            <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md text-slate-200 text-xs px-2.5 py-1 rounded-md font-medium">
+                                ~$${estMortgage.toLocaleString()}/mo est.
+                            </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+                            <div>
+                                <div class="flex items-baseline justify-between mb-1">
+                                    <span class="text-2xl font-extrabold text-slate-900">$${p.price.toLocaleString()}</span>
+                                    <span class="text-xs font-medium text-slate-400">$${Math.round(p.price / p.sqft)}/sqft</span>
+                                </div>
+                                <h3 class="font-bold text-slate-800 text-base line-clamp-1 hover:text-sky-600 cursor-pointer" onclick="openPropertyModal('${p.id}')">${p.title}</h3>
+                                <p class="text-xs text-slate-500 mt-0.5 line-clamp-1"><i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>${p.address}</p>
+                            </div>
+
+                            <!-- Specs Pills -->
+                            <div class="grid grid-cols-3 gap-2 text-center text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-semibold text-slate-700">
+                                <div><i class="fa-solid fa-bed text-sky-500 mr-1"></i>${p.beds} Beds</div>
+                                <div><i class="fa-solid fa-bath text-sky-500 mr-1"></i>${p.baths} Baths</div>
+                                <div><i class="fa-solid fa-ruler-combined text-sky-500 mr-1"></i>${p.sqft.toLocaleString()} sqft</div>
+                            </div>
+
+                            <!-- Amenities Tags -->
+                            <div class="flex flex-wrap gap-1.5">
+                                ${p.amenities.map(a => `<span class="text-[10px] bg-sky-50 text-sky-700 border border-sky-100 font-medium px-2 py-0.5 rounded-md">${a}</span>`).join('')}
+                            </div>
+
+                            <!-- Card Footer Action -->
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <span class="text-xs text-slate-400 font-medium">${p.type}</span>
+                                <button onclick="openPropertyModal('${p.id}')" class="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center space-x-1">
+                                    <span>View Details</span>
+                                    <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleAmenityFilter(amenity, btnElement) {
+            if (activeAmenityFilters.has(amenity)) {
+                activeAmenityFilters.delete(amenity);
+                btnElement.classList.remove('bg-sky-600', 'text-white', 'border-sky-600');
+                btnElement.classList.add('bg-slate-50', 'text-slate-600');
+            } else {
+                activeAmenityFilters.add(amenity);
+                btnElement.classList.add('bg-sky-600', 'text-white', 'border-sky-600');
+                btnElement.classList.remove('bg-slate-50', 'text-slate-600');
+            }
+            applyFilters();
+        }
+
+        function applyFilters() {
+            renderProperties();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-town').value = 'ALL';
+            document.getElementById('filter-max-price').value = '99999999';
+            document.getElementById('filter-beds').value = '0';
+            document.getElementById('filter-sort').value = 'match-desc';
+            activeAmenityFilters.clear();
+            document.querySelectorAll('.amenity-chip').forEach(btn => {
+                btn.classList.remove('bg-sky-600', 'text-white', 'border-sky-600');
+                btn.classList.add('bg-slate-50', 'text-slate-600');
+            });
+            renderProperties();
+        }
+
+        // --- 6. RENDER TARGET TOWNS & COMPARISON MATRIX ---
+        function renderTowns() {
+            const grid = document.getElementById('towns-grid');
+            const tbody = document.getElementById('town-matrix-tbody');
+            const townSelect = document.getElementById('filter-town');
+            const mapTownSelect = document.getElementById('map-town-filter');
+
+            // Populate Dropdowns
+            const townOptions = `<option value="ALL">All Target Towns</option>` + towns.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            townSelect.innerHTML = townOptions;
+            if (mapTownSelect) mapTownSelect.innerHTML = townOptions;
+
+            document.getElementById('town-count-badge').textContent = towns.length;
+
+            // Render Match Cards
+            grid.innerHTML = towns.map(town => {
+                const matchPercent = calculateTownMatchScore(town);
+                return `
+                    <div class="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition border border-slate-200/80 space-y-4 relative flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wide">${town.county}</span>
+                                    <h3 class="text-xl font-extrabold text-slate-900">${town.name}</h3>
+                                </div>
+                                <div class="text-right">
+                                    <span class="inline-block px-3 py-1 rounded-xl text-xs font-black ${matchPercent >= 85 ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'}">
+                                        ${matchPercent}% Match
+                                    </span>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-slate-500 mt-2 line-clamp-2">${town.vibes.join(' • ')}</p>
+
+                            <div class="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span class="text-slate-400 font-semibold block">Median Home Price</span>
+                                    <span class="text-base font-extrabold text-slate-800">$${town.medianPrice.toLocaleString()}</span>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span class="text-slate-400 font-semibold block">Schools Rating</span>
+                                    <span class="text-base font-extrabold text-emerald-600"><i class="fa-solid fa-graduation-cap mr-1"></i>${town.schoolRating}/10</span>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span class="text-slate-400 font-semibold block">Safety Score</span>
+                                    <span class="text-base font-extrabold text-slate-800">${town.safetyScore}/100</span>
+                                </div>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                    <span class="text-slate-400 font-semibold block">Commute Time</span>
+                                    <span class="text-base font-extrabold text-slate-800">${town.commuteTime} mins</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex justify-between items-center text-xs">
+                            <span class="text-slate-400">Tax Rate: <strong class="text-slate-700">${town.taxRate}%</strong></span>
+                            <button onclick="filterByTownDirect('${town.id}')" class="text-sky-600 hover:text-sky-700 font-bold flex items-center space-x-1">
+                                <span>Browse Homes</span>
+                                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Render Comparison Table Matrix
+            tbody.innerHTML = towns.map(town => {
+                const matchPercent = calculateTownMatchScore(town);
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-3.5 font-bold text-slate-800">${town.name}</td>
+                        <td class="p-3.5"><span class="px-2.5 py-0.5 rounded-md font-bold text-xs ${matchPercent >= 85 ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800'}">${matchPercent}%</span></td>
+                        <td class="p-3.5 font-semibold text-slate-700">$${town.medianPrice.toLocaleString()}</td>
+                        <td class="p-3.5 font-semibold text-slate-700"><i class="fa-solid fa-star text-amber-400 text-xs mr-1"></i>${town.schoolRating}/10</td>
+                        <td class="p-3.5 font-semibold text-slate-700">${town.safetyScore}/100</td>
+                        <td class="p-3.5 font-semibold text-slate-700">${town.walkScore}/100</td>
+                        <td class="p-3.5 font-semibold text-slate-700">${town.commuteTime} min</td>
+                        <td class="p-3.5 font-semibold text-slate-700">${town.taxRate}%</td>
+                        <td class="p-3.5 text-right space-x-1">
+                            <button onclick="filterByTownDirect('${town.id}')" class="px-2.5 py-1 bg-sky-50 text-sky-600 hover:bg-sky-100 font-bold rounded-lg text-xs">View Listings</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterByTownDirect(townId) {
+            switchTab('properties');
+            document.getElementById('filter-town').value = townId;
+            applyFilters();
+        }
+
+        // --- 7. LEAFLET MAP VIEW ---
+        function initLeafletMap() {
+            if (!leafletMap) {
+                // Initialize Chicago Metro area standard coords
+                leafletMap = L.map('map-container').setView([41.8781, -87.6298], 11);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(leafletMap);
+
+                mapMarkersGroup = L.layerGroup().addTo(leafletMap);
+            } else {
+                leafletMap.invalidateSize();
+            }
+
+            renderMapMarkers();
+        }
+
+        function renderMapMarkers() {
+            if (!leafletMap || !mapMarkersGroup) return;
+            mapMarkersGroup.clearLayers();
+
+            const mapTownVal = document.getElementById('map-town-filter').value;
+
+            // Render Town Circles
+            towns.forEach(town => {
+                if (mapTownVal === 'ALL' || mapTownVal === town.id) {
+                    const circle = L.circle([town.lat, town.lng], {
+                        color: '#0284c7',
+                        fillColor: '#38bdf8',
+                        fillOpacity: 0.15,
+                        radius: 2000
+                    }).addTo(mapMarkersGroup);
+
+                    circle.bindPopup(`
+                        <div class="text-xs font-sans">
+                            <strong class="text-sm font-bold text-slate-800 block">${town.name}</strong>
+                            <p class="text-slate-500">Median: $${town.medianPrice.toLocaleString()}</p>
+                            <p class="text-emerald-600 font-bold">School Rating: ${town.schoolRating}/10</p>
+                        </div>
+                    `);
+                }
+            });
+
+            // Render Property Markers
+            properties.forEach(p => {
+                if (mapTownVal === 'ALL' || p.townId === mapTownVal) {
+                    const customIcon = L.divIcon({
+                        className: 'custom-map-pin',
+                        html: `<div class="bg-slate-900 text-white hover:bg-sky-600 text-[11px] font-black px-2 py-1 rounded-md shadow-lg border border-white whitespace-nowrap cursor-pointer transition transform hover:scale-110">$${Math.round(p.price / 1000)}k</div>`,
+                        iconSize: [40, 20],
+                        iconAnchor: [20, 10]
+                    });
+
+                    const marker = L.marker([p.lat, p.lng], { icon: customIcon }).addTo(mapMarkersGroup);
+
+                    marker.bindPopup(`
+                        <div class="w-48 text-xs font-sans space-y-2 p-1">
+                            <img src="${p.images[0]}" class="w-full h-24 object-cover rounded-lg">
+                            <strong class="font-extrabold text-slate-900 block text-sm">$${p.price.toLocaleString()}</strong>
+                            <p class="font-medium text-slate-700 line-clamp-1">${p.title}</p>
+                            <p class="text-slate-500 text-[10px]">${p.beds} Beds • ${p.baths} Baths • ${p.sqft} sqft</p>
+                            <button onclick="openPropertyModal('${p.id}')" class="w-full py-1.5 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 text-center block">View Listing</button>
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        // --- 8. MORTGAGE CALCULATOR & CHART.JS ---
+        function updateCalculator() {
+            const price = parseFloat(document.getElementById('calc-price-slider').value);
+            const dpPercent = parseFloat(document.getElementById('calc-dp-slider').value);
+            const rate = parseFloat(document.getElementById('calc-rate-input').value) || 0;
+            const term = parseInt(document.getElementById('calc-term-select').value);
+            const taxRate = parseFloat(document.getElementById('calc-taxrate-input').value) || 0;
+            const insuranceAnnual = parseFloat(document.getElementById('calc-insurance-input').value) || 0;
+            const hoa = parseFloat(document.getElementById('calc-hoa-input').value) || 0;
+
+            const dpAmount = price * (dpPercent / 100);
+            const principal = price - dpAmount;
+
+            document.getElementById('calc-price-display').textContent = `$${price.toLocaleString()}`;
+            document.getElementById('calc-dp-display').textContent = `$${dpAmount.toLocaleString()} (${dpPercent}%)`;
+
+            // P&I
+            const monthlyRate = (rate / 100) / 12;
+            const totalPayments = term * 12;
+            let monthlyPI = 0;
+            if (monthlyRate > 0) {
+                monthlyPI = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) / 
+                            (Math.pow(1 + monthlyRate, totalPayments) - 1);
+            } else {
+                monthlyPI = principal / totalPayments;
+            }
+
+            const monthlyTax = (price * (taxRate / 100)) / 12;
+            const monthlyIns = insuranceAnnual / 12;
+            const totalMonthly = monthlyPI + monthlyTax + monthlyIns + hoa;
+
+            document.getElementById('calc-total-monthly').textContent = `$${Math.round(totalMonthly).toLocaleString()}`;
+            document.getElementById('legend-pi').textContent = `$${Math.round(monthlyPI).toLocaleString()}`;
+            document.getElementById('legend-tax').textContent = `$${Math.round(monthlyTax).toLocaleString()}`;
+            document.getElementById('legend-ins').textContent = `$${Math.round(monthlyIns).toLocaleString()}`;
+            document.getElementById('legend-hoa').textContent = `$${Math.round(hoa).toLocaleString()}`;
+
+            renderMortgageChart(monthlyPI, monthlyTax, monthlyIns, hoa);
+        }
+
+        function renderMortgageChart(pi, tax, ins, hoa) {
+            const ctx = document.getElementById('mortgageChart').getContext('2d');
+
+            if (mortgageChartInstance) {
+                mortgageChartInstance.destroy();
+            }
+
+            mortgageChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Principal & Interest', 'Property Tax', 'Insurance', 'HOA'],
+                    datasets: [{
+                        data: [Math.round(pi), Math.round(tax), Math.round(ins), Math.round(hoa)],
+                        backgroundColor: ['#0284c7', '#34d399', '#fbbf24', '#c084fc'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    cutout: '72%'
+                }
+            });
+        }
+
+        // --- 9. PROPERTY MODAL & FAVORITES & NOTES ---
+        function openPropertyModal(propId) {
+            const p = properties.find(item => item.id === propId);
+            if (!p) return;
+            activeModalProperty = p;
+
+            const town = towns.find(t => t.id === p.townId) || { name: 'Target Area', schoolRating: 8.5, safetyScore: 88, walkScore: 75, commuteTime: 25, taxRate: 1.5 };
+            const matchScore = calculatePropertyMatchScore(p);
+            const estMortgage = calculateEstimatedMortgage(p.price, town.taxRate);
+
+            document.getElementById('prop-modal-town').textContent = town.name;
+            document.getElementById('prop-modal-match').textContent = `${matchScore}% Town Match`;
+            document.getElementById('prop-modal-title').textContent = p.title;
+            document.getElementById('prop-modal-address').textContent = p.address;
+            
+            document.getElementById('prop-modal-main-img').src = p.images[0];
+            document.getElementById('prop-modal-thumbs').innerHTML = p.images.map((img, idx) => `
+                <img src="${img}" onclick="document.getElementById('prop-modal-main-img').src='${img}'" class="w-16 h-12 object-cover rounded-lg cursor-pointer border-2 hover:border-sky-500 transition">
+            `).join('');
+
+            document.getElementById('prop-modal-price').textContent = `$${p.price.toLocaleString()}`;
+            document.getElementById('prop-modal-beds-baths').textContent = `${p.beds} Beds / ${p.baths} Baths`;
+            document.getElementById('prop-modal-sqft').textContent = `${p.sqft.toLocaleString()} sqft`;
+            document.getElementById('prop-modal-est-mortgage').textContent = `$${estMortgage.toLocaleString()}/mo`;
+
+            document.getElementById('prop-modal-desc').textContent = p.description;
+            document.getElementById('prop-modal-amenities').innerHTML = p.amenities.map(a => `
+                <span class="text-xs bg-slate-100 text-slate-700 font-semibold px-3 py-1 rounded-lg border border-slate-200"><i class="fa-solid fa-check text-sky-500 mr-1"></i>${a}</span>
+            `).join('');
+
+            document.getElementById('prop-modal-school-score').textContent = `${town.schoolRating}/10`;
+            document.getElementById('prop-modal-safety-score').textContent = `${town.safetyScore}/100`;
+            document.getElementById('prop-modal-walk-score').textContent = `${town.walkScore}/100`;
+            document.getElementById('prop-modal-commute').textContent = `${town.commuteTime} mins`;
+
+            // Existing Saved Notes & Rating
+            const savedItem = savedProperties.find(s => s.id === p.id);
+            if (savedItem) {
+                document.getElementById('prop-modal-notes-input').value = savedItem.notes || '';
+                modalRatingTemp = savedItem.rating || 0;
+            } else {
+                document.getElementById('prop-modal-notes-input').value = '';
+                modalRatingTemp = 0;
+            }
+            updateModalStarUI();
+
+            document.getElementById('modal-property').classList.remove('hidden');
+        }
+
+        function closePropertyModal() {
+            document.getElementById('modal-property').classList.add('hidden');
+        }
+
+        function setModalRating(stars) {
+            modalRatingTemp = stars;
+            updateModalStarUI();
+        }
+
+        function updateModalStarUI() {
+            const stars = document.querySelectorAll('#prop-modal-stars i');
+            stars.forEach((star, idx) => {
+                if (idx < modalRatingTemp) {
+                    star.classList.remove('fa-regular');
+                    star.classList.add('fa-solid');
+                } else {
+                    star.classList.remove('fa-solid');
+                    star.classList.add('fa-regular');
+                }
+            });
+        }
+
+        function saveModalNotes() {
+            if (!activeModalProperty) return;
+            const notesText = document.getElementById('prop-modal-notes-input').value;
+            
+            let savedIndex = savedProperties.findIndex(s => s.id === activeModalProperty.id);
+            if (savedIndex > -1) {
+                savedProperties[savedIndex].notes = notesText;
+                savedProperties[savedIndex].rating = modalRatingTemp;
+            } else {
+                savedProperties.push({
+                    id: activeModalProperty.id,
+                    notes: notesText,
+                    rating: modalRatingTemp,
+                    dateSaved: new Date().toLocaleDateString()
+                });
+            }
+
+            localStorage.setItem('hf_saved', JSON.stringify(savedProperties));
+            updateSavedBadges();
+            showToast('Property notes & favorite saved!');
+            closePropertyModal();
+        }
+
+        function toggleFavoriteProperty(propId, e) {
+            if (e) e.stopPropagation();
+            let index = savedProperties.findIndex(s => s.id === propId);
+            if (index > -1) {
+                savedProperties.splice(index, 1);
+                showToast('Removed from favorites');
+            } else {
+                savedProperties.push({
+                    id: propId,
+                    notes: '',
+                    rating: 5,
+                    dateSaved: new Date().toLocaleDateString()
+                });
+                showToast('Saved to your favorites!');
+            }
+            localStorage.setItem('hf_saved', JSON.stringify(savedProperties));
+            updateSavedBadges();
+            renderProperties();
+        }
+
+        function updateSavedBadges() {
+            const count = savedProperties.length;
+            document.getElementById('saved-count-badge').textContent = count;
+            document.getElementById('mob-saved-count').textContent = count;
+        }
+
+        // --- 10. SAVED HOMES & TOUR SHEET ---
+        function renderSavedProperties() {
+            const grid = document.getElementById('saved-properties-grid');
+            const noSavedMsg = document.getElementById('no-saved-msg');
+            const printList = document.getElementById('print-items-list');
+
+            document.getElementById('print-date').textContent = new Date().toLocaleDateString();
+            document.getElementById('print-count').textContent = savedProperties.length;
+
+            if (savedProperties.length === 0) {
+                grid.innerHTML = '';
+                noSavedMsg.classList.remove('hidden');
+                return;
+            } else {
+                noSavedMsg.classList.add('hidden');
+            }
+
+            grid.innerHTML = savedProperties.map(savedItem => {
+                const p = properties.find(item => item.id === savedItem.id);
+                if (!p) return '';
+                const town = towns.find(t => t.id === p.townId) || { name: 'Target Town' };
+
+                return `
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2.5 py-0.5 rounded-md">${town.name}</span>
+                                    <h3 class="font-extrabold text-slate-900 text-lg mt-1">${p.title}</h3>
+                                    <p class="text-xs text-slate-500">${p.address}</p>
+                                </div>
+                                <span class="text-xl font-extrabold text-slate-800">$${p.price.toLocaleString()}</span>
+                            </div>
+
+                            <!-- Rating Stars -->
+                            <div class="mt-3 flex items-center space-x-1 text-amber-400 text-sm">
+                                ${[1,2,3,4,5].map(star => `
+                                    <i class="${star <= (savedItem.rating || 0) ? 'fa-solid' : 'fa-regular'} fa-star"></i>
+                                `).join('')}
+                            </div>
+
+                            <!-- Notes Preview / Edit -->
+                            <div class="mt-3 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                                <span class="text-[10px] uppercase font-bold text-slate-400">Buyer Tour Notes:</span>
+                                <p class="text-xs text-slate-700 italic">${savedItem.notes || 'No notes added yet. Click edit to add inspection details.'}</p>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                            <button onclick="openPropertyModal('${p.id}')" class="font-bold text-sky-600 hover:text-sky-700">Edit Notes & Details</button>
+                            <button onclick="toggleFavoriteProperty('${p.id}')" class="text-rose-500 hover:text-rose-600 font-semibold"><i class="fa-solid fa-trash mr-1"></i>Remove</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Print List
+            printList.innerHTML = savedProperties.map((savedItem, idx) => {
+                const p = properties.find(item => item.id === savedItem.id);
+                if (!p) return '';
+                const town = towns.find(t => t.id === p.townId) || { name: 'Target Town' };
+
+                return `
+                    <div class="border border-slate-300 rounded-lg p-4 space-y-3">
+                        <div class="flex justify-between items-start border-b border-slate-200 pb-2">
+                            <div>
+                                <span class="font-bold text-slate-900 text-base">#${idx + 1}. ${p.title}</span>
+                                <p class="text-xs text-slate-600">${p.address} (${town.name})</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-extrabold text-slate-900 text-base">$${p.price.toLocaleString()}</span>
+                                <p class="text-xs text-slate-500">${p.beds} Beds • ${p.baths} Baths • ${p.sqft} sqft</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <strong>Buyer Rating:</strong> ${savedItem.rating || 0} / 5 Stars
+                                <br>
+                                <strong>Field Notes:</strong> ${savedItem.notes || 'N/A'}
+                            </div>
+                            <div class="border-l border-slate-200 pl-4 space-y-1">
+                                <div>[ &nbsp; ] Kitchen & Appliances: _____</div>
+                                <div>[ &nbsp; ] Backyard / Privacy: _____</div>
+                                <div>[ &nbsp; ] Neighborhood Vibe: _____</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 11. SIDE-BY-SIDE COMPARE MATRIX ---
+        function openCompareModal() {
+            if (savedProperties.length === 0) {
+                showToast('Save at least 1 property to compare!');
+                return;
+            }
+
+            const container = document.getElementById('compare-matrix-container');
+            const compareList = savedProperties.map(s => properties.find(p => p.id === s.id)).filter(Boolean);
+
+            container.innerHTML = `
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="p-3 font-bold text-slate-700">Metric / Feature</th>
+                            ${compareList.map(p => `
+                                <th class="p-3 font-extrabold text-slate-900 min-w-[200px]">${p.title}</th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Price</td>
+                            ${compareList.map(p => `<td class="p-3 font-extrabold text-sky-600 text-sm">$${p.price.toLocaleString()}</td>`).join('')}
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Target Town</td>
+                            ${compareList.map(p => {
+                                const town = towns.find(t => t.id === p.townId);
+                                return `<td class="p-3 font-bold text-slate-800">${town ? town.name : 'N/A'}</td>`;
+                            }).join('')}
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Beds / Baths</td>
+                            ${compareList.map(p => `<td class="p-3 font-semibold">${p.beds} Beds / ${p.baths} Baths</td>`).join('')}
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Square Footage</td>
+                            ${compareList.map(p => `<td class="p-3 font-semibold">${p.sqft.toLocaleString()} sqft ($${Math.round(p.price/p.sqft)}/sqft)</td>`).join('')}
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Town Match %</td>
+                            ${compareList.map(p => `<td class="p-3 font-extrabold text-emerald-600">${calculatePropertyMatchScore(p)}%</td>`).join('')}
+                        </tr>
+                        <tr>
+                            <td class="p-3 font-bold text-slate-500">Amenities</td>
+                            ${compareList.map(p => `<td class="p-3">${p.amenities.join(', ')}</td>`).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('modal-compare').classList.remove('hidden');
+        }
+
+        function closeCompareModal() {
+            document.getElementById('modal-compare').classList.add('hidden');
+        }
+
+        // --- 12. PREFERENCE MODAL & ADD TOWN MODAL ---
+        function openPreferenceModal() {
+            document.getElementById('pref-budget-slider').value = userPreferences.maxBudget;
+            document.getElementById('pref-school-slider').value = userPreferences.schoolWeight;
+            document.getElementById('pref-safety-slider').value = userPreferences.safetyWeight;
+            document.getElementById('pref-commute-slider').value = userPreferences.commuteWeight;
+            document.getElementById('pref-walk-slider').value = userPreferences.walkWeight;
+            document.getElementById('pref-tax-slider').value = userPreferences.taxWeight;
+            updatePrefDisplay();
+            document.getElementById('modal-preferences').classList.remove('hidden');
+        }
+
+        function closePreferenceModal() {
+            document.getElementById('modal-preferences').classList.add('hidden');
+        }
+
+        function updatePrefDisplay() {
+            document.getElementById('pref-budget-display').textContent = `$${parseInt(document.getElementById('pref-budget-slider').value).toLocaleString()}`;
+            document.getElementById('pref-school-val').textContent = `${document.getElementById('pref-school-slider').value}/10`;
+            document.getElementById('pref-safety-val').textContent = `${document.getElementById('pref-safety-slider').value}/10`;
+            document.getElementById('pref-commute-val').textContent = `${document.getElementById('pref-commute-slider').value}/10`;
+            document.getElementById('pref-walk-val').textContent = `${document.getElementById('pref-walk-slider').value}/10`;
+            document.getElementById('pref-tax-val').textContent = `${document.getElementById('pref-tax-slider').value}/10`;
+        }
+
+        function savePreferences() {
+            userPreferences.maxBudget = parseInt(document.getElementById('pref-budget-slider').value);
+            userPreferences.schoolWeight = parseInt(document.getElementById('pref-school-slider').value);
+            userPreferences.safetyWeight = parseInt(document.getElementById('pref-safety-slider').value);
+            userPreferences.commuteWeight = parseInt(document.getElementById('pref-commute-slider').value);
+            userPreferences.walkWeight = parseInt(document.getElementById('pref-walk-slider').value);
+            userPreferences.taxWeight = parseInt(document.getElementById('pref-tax-slider').value);
+
+            localStorage.setItem('hf_prefs', JSON.stringify(userPreferences));
+            closePreferenceModal();
+            renderTowns();
+            renderProperties();
+            showToast('Preferences updated & match scores recalculated!');
+        }
+
+        function openAddTownModal() {
+            document.getElementById('modal-add-town').classList.remove('hidden');
+        }
+
+        function closeAddTownModal() {
+            document.getElementById('modal-add-town').classList.add('hidden');
+        }
+
+        function handleAddTown(e) {
+            e.preventDefault();
+            const newTown = {
+                id: 'town-' + Date.now(),
+                name: document.getElementById('new-town-name').value,
+                county: 'Custom County',
+                lat: 41.8750 + (Math.random() - 0.5) * 0.1,
+                lng: -87.6250 + (Math.random() - 0.5) * 0.1,
+                medianPrice: parseFloat(document.getElementById('new-town-price').value),
+                schoolRating: parseFloat(document.getElementById('new-town-school').value),
+                safetyScore: parseInt(document.getElementById('new-town-safety').value),
+                walkScore: parseInt(document.getElementById('new-town-walk').value),
+                commuteTime: parseInt(document.getElementById('new-town-commute').value),
+                taxRate: parseFloat(document.getElementById('new-town-tax').value),
+                vibes: document.getElementById('new-town-vibes').value.split(',').map(s => s.trim())
+            };
+
+            towns.push(newTown);
+            localStorage.setItem('hf_towns', JSON.stringify(towns));
+            closeAddTownModal();
+            renderTowns();
+            showToast(`Added custom target town: ${newTown.name}`);
+        }
+
+        function sendAgentInquiry() {
+            showToast('Tour request dispatched! A representative will contact you.');
+            closePropertyModal();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // --- 13. APP INITIALIZATION ---
+        window.onload = function() {
+            updateSavedBadges();
+            renderTowns();
+            renderProperties();
+        };
+    </script>
+</body>
+</html>
